@@ -5,13 +5,14 @@ const db = require('../db');
 
 // ─── GET /api/habits ──────────────────────────────────────────────────────────
 
-function getHabits(req, res, next) {
+async function getHabits(req, res, next) {
   try {
-    const habits = db.prepare(
-      'SELECT id, name, emoji, frequency, sort_order, created_at FROM habits WHERE user_id = ? ORDER BY sort_order ASC'
-    ).all(req.user.id);
+    const habitsResult = await db.query(
+      'SELECT id, name, emoji, frequency, sort_order, created_at FROM habits WHERE user_id = $1 ORDER BY sort_order ASC',
+      [req.user.id]
+    );
 
-    return res.status(200).json({ habits });
+    return res.status(200).json({ habits: habitsResult.rows });
   } catch (err) {
     next(err);
   }
@@ -19,7 +20,7 @@ function getHabits(req, res, next) {
 
 // ─── POST /api/habits ─────────────────────────────────────────────────────────
 
-function createHabit(req, res, next) {
+async function createHabit(req, res, next) {
   try {
     const { name, emoji = '✅', frequency = 7 } = req.body;
 
@@ -33,20 +34,25 @@ function createHabit(req, res, next) {
     }
 
     // Get current max sort_order for this user
-    const maxRow = db.prepare(
-      'SELECT MAX(sort_order) AS max_order FROM habits WHERE user_id = ?'
-    ).get(req.user.id);
-    const sortOrder = (maxRow.max_order !== null ? maxRow.max_order : -1) + 1;
+    const maxRowResult = await db.query(
+      'SELECT MAX(sort_order) AS max_order FROM habits WHERE user_id = $1',
+      [req.user.id]
+    );
+    const maxRow = maxRowResult.rows[0];
+    const sortOrder = (maxRow && maxRow.max_order !== null ? maxRow.max_order : -1) + 1;
 
     const id = uuidv4();
 
-    db.prepare(
-      'INSERT INTO habits (id, user_id, name, emoji, frequency, sort_order) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(id, req.user.id, name.trim(), emoji.trim(), freq, sortOrder);
+    await db.query(
+      'INSERT INTO habits (id, user_id, name, emoji, frequency, sort_order) VALUES ($1, $2, $3, $4, $5, $6)',
+      [id, req.user.id, name.trim(), emoji.trim(), freq, sortOrder]
+    );
 
-    const habit = db.prepare(
-      'SELECT id, name, emoji, frequency, sort_order, created_at FROM habits WHERE id = ?'
-    ).get(id);
+    const habitResult = await db.query(
+      'SELECT id, name, emoji, frequency, sort_order, created_at FROM habits WHERE id = $1',
+      [id]
+    );
+    const habit = habitResult.rows[0];
 
     return res.status(201).json({ habit });
   } catch (err) {
@@ -57,7 +63,8 @@ function createHabit(req, res, next) {
 // ─── PUT /api/habits/reorder ─────────────────────────────────────────────────
 // IMPORTANT: This route must be registered BEFORE /:id in Express
 
-function reorderHabits(req, res, next) {
+async function reorderHabits(req, res, next) {
+  const client = await db.pool.connect();
   try {
     const { order } = req.body;
 
@@ -65,35 +72,39 @@ function reorderHabits(req, res, next) {
       return res.status(400).json({ error: 'Invalid body', message: 'order must be a non-empty array of habit IDs.' });
     }
 
-    const updateStmt = db.prepare(
-      'UPDATE habits SET sort_order = ? WHERE id = ? AND user_id = ?'
-    );
+    await client.query('BEGIN');
+    
+    for (let index = 0; index < order.length; index++) {
+      const id = order[index];
+      await client.query(
+        'UPDATE habits SET sort_order = $1 WHERE id = $2 AND user_id = $3',
+        [index, id, req.user.id]
+      );
+    }
 
-    // Run all updates atomically inside a transaction
-    const runTransaction = db.transaction((ids) => {
-      ids.forEach((id, index) => {
-        updateStmt.run(index, id, req.user.id);
-      });
-    });
-
-    runTransaction(order);
+    await client.query('COMMIT');
 
     return res.status(200).json({ message: 'Order updated' });
   } catch (err) {
+    await client.query('ROLLBACK');
     next(err);
+  } finally {
+    client.release();
   }
 }
 
 // ─── PUT /api/habits/:id ──────────────────────────────────────────────────────
 
-function updateHabit(req, res, next) {
+async function updateHabit(req, res, next) {
   try {
     const { id } = req.params;
 
     // Verify ownership
-    const existing = db.prepare(
-      'SELECT id FROM habits WHERE id = ? AND user_id = ?'
-    ).get(id, req.user.id);
+    const existingResult = await db.query(
+      'SELECT id FROM habits WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+    const existing = existingResult.rows[0];
 
     if (!existing) {
       return res.status(404).json({ error: 'Habit not found' });
@@ -104,14 +115,15 @@ function updateHabit(req, res, next) {
     // Build dynamic SET clause — only update provided fields
     const fields = [];
     const values = [];
+    let placeholderIdx = 1;
 
     if (name !== undefined) {
       if (!name.trim()) return res.status(400).json({ error: 'Invalid value', message: 'name cannot be empty.' });
-      fields.push('name = ?');
+      fields.push(`name = $${placeholderIdx++}`);
       values.push(name.trim());
     }
     if (emoji !== undefined) {
-      fields.push('emoji = ?');
+      fields.push(`emoji = $${placeholderIdx++}`);
       values.push(emoji.trim());
     }
     if (frequency !== undefined) {
@@ -119,11 +131,11 @@ function updateHabit(req, res, next) {
       if (isNaN(freq) || freq < 1 || freq > 7) {
         return res.status(400).json({ error: 'Invalid frequency', message: 'frequency must be between 1 and 7.' });
       }
-      fields.push('frequency = ?');
+      fields.push(`frequency = $${placeholderIdx++}`);
       values.push(freq);
     }
     if (sort_order !== undefined) {
-      fields.push('sort_order = ?');
+      fields.push(`sort_order = $${placeholderIdx++}`);
       values.push(parseInt(sort_order, 10));
     }
 
@@ -132,13 +144,15 @@ function updateHabit(req, res, next) {
     }
 
     values.push(id, req.user.id); // WHERE clause params
-    db.prepare(
-      `UPDATE habits SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`
-    ).run(...values);
+    const queryText = `UPDATE habits SET ${fields.join(', ')} WHERE id = $${placeholderIdx++} AND user_id = $${placeholderIdx++}`;
+    
+    await db.query(queryText, values);
 
-    const updated = db.prepare(
-      'SELECT id, name, emoji, frequency, sort_order, created_at FROM habits WHERE id = ?'
-    ).get(id);
+    const updatedResult = await db.query(
+      'SELECT id, name, emoji, frequency, sort_order, created_at FROM habits WHERE id = $1',
+      [id]
+    );
+    const updated = updatedResult.rows[0];
 
     return res.status(200).json({ habit: updated });
   } catch (err) {
@@ -148,20 +162,25 @@ function updateHabit(req, res, next) {
 
 // ─── DELETE /api/habits/:id ───────────────────────────────────────────────────
 
-function deleteHabit(req, res, next) {
+async function deleteHabit(req, res, next) {
   try {
     const { id } = req.params;
 
-    const existing = db.prepare(
-      'SELECT id FROM habits WHERE id = ? AND user_id = ?'
-    ).get(id, req.user.id);
+    const existingResult = await db.query(
+      'SELECT id FROM habits WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
+    const existing = existingResult.rows[0];
 
     if (!existing) {
       return res.status(404).json({ error: 'Habit not found' });
     }
 
     // Cascade in schema will also remove habit_logs rows
-    db.prepare('DELETE FROM habits WHERE id = ? AND user_id = ?').run(id, req.user.id);
+    await db.query(
+      'DELETE FROM habits WHERE id = $1 AND user_id = $2',
+      [id, req.user.id]
+    );
 
     return res.status(200).json({ message: 'Habit deleted' });
   } catch (err) {

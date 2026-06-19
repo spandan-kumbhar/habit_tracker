@@ -1,17 +1,20 @@
 'use strict';
 
-const Database = require('better-sqlite3');
-const path = require('path');
+const { Pool } = require('pg');
 
-// Resolve DB path relative to the project root (where the process is started)
-const dbPath = path.resolve(process.cwd(), process.env.DB_PATH || './habit_tracker.db');
+// Initialize pg Pool using connection string from environment variables
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false, // Standard for Neon DB to avoid credential/CA issues
+  },
+});
 
-const db = new Database(dbPath);
-
-// Enable WAL mode for better concurrent read performance
-db.pragma('journal_mode = WAL');
-
-// Enforce foreign key constraints
-db.pragma('foreign_keys = ON');
-
-module.exports = db;
+module.exports = {
+  /**
+   * Helper function to execute a single query.
+   * Automatically acquires and releases a client from the pool.
+   */
+  query: (text, params) => pool.query(text, params),
+  pool,
+};

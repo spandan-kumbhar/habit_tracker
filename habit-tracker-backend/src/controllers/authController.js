@@ -11,7 +11,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 
-function register(req, res, next) {
+async function register(req, res, next) {
   try {
     const { name, email, password } = req.body;
 
@@ -31,7 +31,11 @@ function register(req, res, next) {
     }
 
     // Check for duplicate email
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase().trim());
+    const existingResult = await db.query(
+      'SELECT id FROM users WHERE email = $1',
+      [email.toLowerCase().trim()]
+    );
+    const existing = existingResult.rows[0];
     if (existing) {
       return res.status(409).json({ error: 'Email already registered' });
     }
@@ -39,9 +43,10 @@ function register(req, res, next) {
     const id = uuidv4();
     const passwordHash = bcrypt.hashSync(password, 10);
 
-    db.prepare(
-      'INSERT INTO users (id, email, password_hash, name) VALUES (?, ?, ?, ?)'
-    ).run(id, email.toLowerCase().trim(), passwordHash, name.trim());
+    await db.query(
+      'INSERT INTO users (id, email, password_hash, name) VALUES ($1, $2, $3, $4)',
+      [id, email.toLowerCase().trim(), passwordHash, name.trim()]
+    );
 
     return res.status(201).json({
       message: 'Account created',
@@ -54,7 +59,7 @@ function register(req, res, next) {
 
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 
-function login(req, res, next) {
+async function login(req, res, next) {
   try {
     const { email, password } = req.body;
 
@@ -62,8 +67,11 @@ function login(req, res, next) {
       return res.status(400).json({ error: 'Missing fields', message: 'email and password are required.' });
     }
 
-    const user = db.prepare('SELECT id, email, name, password_hash FROM users WHERE email = ?')
-      .get(email.toLowerCase().trim());
+    const userResult = await db.query(
+      'SELECT id, email, name, password_hash FROM users WHERE email = $1',
+      [email.toLowerCase().trim()]
+    );
+    const user = userResult.rows[0];
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });

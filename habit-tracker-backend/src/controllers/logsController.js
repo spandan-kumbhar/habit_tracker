@@ -24,7 +24,7 @@ function pad(n) {
 
 // ─── GET /api/logs?year=YYYY&month=M ─────────────────────────────────────────
 
-function getLogs(req, res, next) {
+async function getLogs(req, res, next) {
   try {
     const { year, month } = req.query;
 
@@ -43,17 +43,17 @@ function getLogs(req, res, next) {
     const dateFrom = `${y}-${pad(m)}-01`;
     const dateTo   = `${y}-${pad(m)}-${pad(days)}`;
 
-    const logs = db.prepare(`
+    const logsResult = await db.query(`
       SELECT hl.id, hl.habit_id, hl.date, hl.completed
       FROM habit_logs hl
       INNER JOIN habits h ON h.id = hl.habit_id
-      WHERE hl.user_id = ?
-        AND hl.date >= ?
-        AND hl.date <= ?
+      WHERE hl.user_id = $1
+        AND hl.date >= $2
+        AND hl.date <= $3
       ORDER BY hl.date ASC
-    `).all(req.user.id, dateFrom, dateTo);
+    `, [req.user.id, dateFrom, dateTo]);
 
-    return res.status(200).json({ logs });
+    return res.status(200).json({ logs: logsResult.rows });
   } catch (err) {
     next(err);
   }
@@ -61,7 +61,7 @@ function getLogs(req, res, next) {
 
 // ─── POST /api/logs/toggle ────────────────────────────────────────────────────
 
-function toggleLog(req, res, next) {
+async function toggleLog(req, res, next) {
   try {
     const { habit_id, date } = req.body;
 
@@ -74,34 +74,40 @@ function toggleLog(req, res, next) {
     }
 
     // Verify habit belongs to the requesting user
-    const habit = db.prepare(
-      'SELECT id FROM habits WHERE id = ? AND user_id = ?'
-    ).get(habit_id, req.user.id);
+    const habitResult = await db.query(
+      'SELECT id FROM habits WHERE id = $1 AND user_id = $2',
+      [habit_id, req.user.id]
+    );
+    const habit = habitResult.rows[0];
 
     if (!habit) {
       return res.status(404).json({ error: 'Habit not found' });
     }
 
     // Check if a log already exists for this habit + date
-    const existing = db.prepare(
-      'SELECT id, completed FROM habit_logs WHERE habit_id = ? AND date = ?'
-    ).get(habit_id, date);
+    const existingResult = await db.query(
+      'SELECT id, completed FROM habit_logs WHERE habit_id = $1 AND date = $2',
+      [habit_id, date]
+    );
+    const existing = existingResult.rows[0];
 
     let log;
 
     if (existing) {
       // Flip completed value
       const newCompleted = existing.completed === 1 ? 0 : 1;
-      db.prepare(
-        'UPDATE habit_logs SET completed = ? WHERE id = ?'
-      ).run(newCompleted, existing.id);
+      await db.query(
+        'UPDATE habit_logs SET completed = $1 WHERE id = $2',
+        [newCompleted, existing.id]
+      );
       log = { id: existing.id, habit_id, date, completed: newCompleted };
     } else {
       // Insert with completed = 1
       const id = uuidv4();
-      db.prepare(
-        'INSERT INTO habit_logs (id, habit_id, user_id, date, completed) VALUES (?, ?, ?, ?, ?)'
-      ).run(id, habit_id, req.user.id, date, 1);
+      await db.query(
+        'INSERT INTO habit_logs (id, habit_id, user_id, date, completed) VALUES ($1, $2, $3, $4, $5)',
+        [id, habit_id, req.user.id, date, 1]
+      );
       log = { id, habit_id, date, completed: 1 };
     }
 
@@ -113,7 +119,7 @@ function toggleLog(req, res, next) {
 
 // ─── GET /api/logs/stats?year=YYYY&month=M ───────────────────────────────────
 
-function getStats(req, res, next) {
+async function getStats(req, res, next) {
   try {
     const { year, month } = req.query;
 
@@ -133,20 +139,20 @@ function getStats(req, res, next) {
     const dateTo   = `${y}-${pad(m)}-${pad(days)}`;
 
     // Total completions for this user in the month
-    const compRow = db.prepare(`
+    const compRowResult = await db.query(`
       SELECT COUNT(*) AS total
       FROM habit_logs hl
-      WHERE hl.user_id = ? AND hl.completed = 1
-        AND hl.date >= ? AND hl.date <= ?
-    `).get(req.user.id, dateFrom, dateTo);
-
-    const total_completions = compRow.total;
+      WHERE hl.user_id = $1 AND hl.completed = 1
+        AND hl.date >= $2 AND hl.date <= $3
+    `, [req.user.id, dateFrom, dateTo]);
+    const total_completions = parseInt(compRowResult.rows[0].total, 10) || 0;
 
     // Total habits for this user
-    const habitsRow = db.prepare(
-      'SELECT COUNT(*) AS total FROM habits WHERE user_id = ?'
-    ).get(req.user.id);
-    const total_habits = habitsRow.total;
+    const habitsRowResult = await db.query(
+      'SELECT COUNT(*) AS total FROM habits WHERE user_id = $1',
+      [req.user.id]
+    );
+    const total_habits = parseInt(habitsRowResult.rows[0].total, 10) || 0;
 
     // Days elapsed — if current month use today's date, else full month
     const today = new Date();
@@ -182,7 +188,7 @@ function getStats(req, res, next) {
 
 // ─── DELETE /api/logs?habit_id=xxx&date=YYYY-MM-DD ───────────────────────────
 
-function deleteLog(req, res, next) {
+async function deleteLog(req, res, next) {
   try {
     const { habit_id, date } = req.query;
 
@@ -191,22 +197,27 @@ function deleteLog(req, res, next) {
     }
 
     // Verify ownership via habits table
-    const habit = db.prepare(
-      'SELECT id FROM habits WHERE id = ? AND user_id = ?'
-    ).get(habit_id, req.user.id);
+    const habitResult = await db.query(
+      'SELECT id FROM habits WHERE id = $1 AND user_id = $2',
+      [habit_id, req.user.id]
+    );
+    const habit = habitResult.rows[0];
 
     if (!habit) {
       return res.status(404).json({ error: 'Habit not found' });
     }
 
-    db.prepare(
-      'DELETE FROM habit_logs WHERE habit_id = ? AND date = ? AND user_id = ?'
-    ).run(habit_id, date, req.user.id);
+    await db.query(
+      'DELETE FROM habit_logs WHERE habit_id = $1 AND date = $2 AND user_id = $3',
+      [habit_id, date, req.user.id]
+    );
 
     return res.status(200).json({ message: 'Log deleted' });
   } catch (err) {
     next(err);
   }
 }
+
+// ───
 
 module.exports = { getLogs, toggleLog, getStats, deleteLog };

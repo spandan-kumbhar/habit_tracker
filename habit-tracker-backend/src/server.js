@@ -5,7 +5,6 @@ require('dotenv').config();
 
 // ─── DB init (must run before any route handler touches the DB) ───────────────
 const initDb = require('./models/initDb');
-initDb();
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 const express = require('express');
@@ -66,11 +65,19 @@ app.use(errorHandler);
 // ─── Start ────────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.PORT, 10) || 3001;
 
-app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
-  console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
-  console.log(`   Frontend URL: ${process.env.FRONTEND_URL || '*'}`);
-  console.log(`   DB path     : ${process.env.DB_PATH || './habit_tracker.db'}`);
-});
+(async () => {
+  try {
+    await initDb();
+    app.listen(PORT, () => {
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`   Environment : ${process.env.NODE_ENV || 'development'}`);
+      console.log(`   Frontend URL: ${process.env.FRONTEND_URL || '*'}`);
+      console.log(`   Database    : PostgreSQL (Neon)`);
+    });
+  } catch (err) {
+    console.error('❌ Database initialization failed. Shutting down.', err);
+    process.exit(1);
+  }
+})();
 
 module.exports = app; // export for testing purposes
