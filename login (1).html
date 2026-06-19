@@ -451,17 +451,16 @@
       valid = false;
     }
 
-    if (valid) {
-      const btn = document.getElementById('loginBtn');
-      btn.textContent = 'Signing in…';
-      btn.disabled = true;
-      btn.style.opacity = '0.8';
-      // TODO: connect to your backend auth endpoint here
-      setTimeout(() => {
-        btn.textContent = '✓ Signed in!';
-        btn.style.background = 'linear-gradient(135deg,#16a34a,#22c55e)';
-      }, 1500);
-    }
+     if (valid) {
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+  btn.style.opacity = '0.8';
+
+  setTimeout(() => {
+    window.location.href = "index.html";
+  }, 1500);
+}
   }
 
   // Allow Enter key to submit
