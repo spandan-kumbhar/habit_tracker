@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HabitFlow – Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --purple-dark:  #5b2d8e;
+      --purple-mid:   #7c3aed;
+      --purple-light: #a78bfa;
+      --purple-pale:  #ede9fe;
+      --accent:       #f59e0b;
+      --bg:           #f5f3ff;
+      --white:        #ffffff;
+      --text:         #1e1b4b;
+      --muted:        #6b7280;
+      --border:       #ddd6fe;
+      --error:        #ef4444;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    /* Split layout */
+    .container {
+      display: flex;
+      width: 100%;
+      max-width: 900px;
+      min-height: 560px;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(91, 45, 142, 0.18);
+    }
+
+    /* ── LEFT PANEL ── */
+    .left {
+      flex: 1;
+      background: linear-gradient(145deg, var(--purple-dark) 0%, var(--purple-mid) 60%, var(--purple-light) 100%);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 48px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .left::before {
+      content: '';
+      position: absolute;
+      width: 320px; height: 320px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.07);
+      top: -80px; right: -80px;
+    }
+    .left::after {
+      content: '';
+      position: absolute;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.05);
+      bottom: 40px; left: -60px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative; z-index: 1;
+    }
+    .brand-icon {
+      font-size: 28px;
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2));
+    }
+    .brand-name {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+    .brand-tagline {
+      font-size: 12px;
+      opacity: 0.75;
+      font-weight: 400;
+      letter-spacing: 0.3px;
+      margin-top: 2px;
+    }
+
+    .left-body {
+      position: relative; z-index: 1;
+    }
+    .left-body h2 {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.25;
+      margin-bottom: 14px;
+    }
+    .left-body p {
+      font-size: 14px;
+      opacity: 0.8;
+      line-height: 1.65;
+      max-width: 260px;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 24px;
+      margin-top: 32px;
+      position: relative; z-index: 1;
+    }
+    .stat-item { text-align: center; }
+    .stat-num {
+      font-size: 22px;
+      font-weight: 700;
+      display: block;
+    }
+    .stat-lbl {
+      font-size: 11px;
+      opacity: 0.7;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* ── RIGHT PANEL ── */
+    .right {
+      flex: 1;
+      background: var(--white);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 48px 44px;
+    }
+
+    .right h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .right .sub {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 32px;
+    }
+    .right .sub a {
+      color: var(--purple-mid);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .right .sub a:hover { text-decoration: underline; }
+
+    .field { margin-bottom: 18px; }
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .input-wrap {
+      position: relative;
+    }
+    .input-wrap .icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px;
+      color: var(--purple-light);
+      pointer-events: none;
+    }
+    .input-wrap input {
+      width: 100%;
+      padding: 11px 14px 11px 40px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--bg);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .input-wrap input:focus {
+      border-color: var(--purple-mid);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+      background: #fff;
+    }
+    .input-wrap .toggle-pw {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: var(--muted);
+    }
+
+    .row-opts {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+      font-size: 13px;
+    }
+    .row-opts label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .row-opts label input[type="checkbox"] {
+      accent-color: var(--purple-mid);
+      width: 15px; height: 15px;
+    }
+    .row-opts a {
+      color: var(--purple-mid);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .row-opts a:hover { text-decoration: underline; }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: linear-gradient(135deg, var(--purple-dark), var(--purple-mid));
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      letter-spacing: 0.2px;
+      transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+      box-shadow: 0 4px 18px rgba(124,58,237,0.35);
+    }
+    .btn-primary:hover {
+      opacity: 0.93;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 22px rgba(124,58,237,0.4);
+    }
+    .btn-primary:active { transform: translateY(0); }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 22px 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .btn-google {
+      width: 100%;
+      padding: 11px;
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .btn-google:hover {
+      background: var(--bg);
+      border-color: #c4b5fd;
+    }
+    .btn-google img {
+      width: 18px; height: 18px;
+    }
+
+    /* error state */
+    .error-msg {
+      color: var(--error);
+      font-size: 12px;
+      margin-top: 5px;
+      display: none;
+    }
+    .input-wrap.has-error input {
+      border-color: var(--error);
+    }
+    .input-wrap.has-error .icon { color: var(--error); }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .container { flex-direction: column; max-width: 420px; }
+      .left { padding: 32px 28px; min-height: 200px; }
+      .left-body h2 { font-size: 22px; }
+      .right { padding: 36px 28px; }
+      .stats-row { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="brand">
+      <span class="brand-icon">✦</span>
+      <div>
+        <div class="brand-name">HabitFlow</div>
+        <div class="brand-tagline">Your daily growth tracker</div>
+      </div>
+    </div>
+
+    <div class="left-body">
+      <h2>Build habits that<br/>actually stick 🚀</h2>
+      <p>Track your daily routines, visualise your streaks, and turn small actions into lasting change.</p>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-num">21+</span>
+          <span class="stat-lbl">Day streaks</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">100%</span>
+          <span class="stat-lbl">Your goal</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-num">∞</span>
+          <span class="stat-lbl">Potential</span>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size:11px;opacity:0.5;position:relative;z-index:1;">
+      Consistency is key. One day at a time. 💜
+    </p>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <h1>Welcome back 👋</h1>
+    <p class="sub">Don't have an account? <a href="#">Sign up free</a></p>
+
+    <div class="field">
+      <label for="email">Email address</label>
+      <div class="input-wrap" id="email-wrap">
+        <span class="icon">✉</span>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email"/>
+      </div>
+      <p class="error-msg" id="email-err">Please enter a valid email.</p>
+    </div>
+
+    <div class="field">
+      <label for="password">Password</label>
+      <div class="input-wrap" id="pw-wrap">
+        <span class="icon">🔒</span>
+        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password"/>
+        <button class="toggle-pw" type="button" id="togglePw" aria-label="Show password">👁</button>
+      </div>
+      <p class="error-msg" id="pw-err">Password must be at least 6 characters.</p>
+    </div>
+
+    <div class="row-opts">
+      <label>
+        <input type="checkbox" id="rememberMe"/>
+        Remember me
+      </label>
+      <a href="#">Forgot password?</a>
+    </div>
+
+    <button class="btn-primary" id="loginBtn" onclick="handleLogin()">
+      Sign in to HabitFlow
+    </button>
+
+    <div class="divider">or continue with</div>
+
+    <button class="btn-google">
+      <!-- Google G SVG inline -->
+      <svg width="18" height="18" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        <path fill="none" d="M0 0h48v48H0z"/>
+      </svg>
+      Continue with Google
+    </button>
+  </div>
+
+</div>
+
+<script>
+  // Toggle password visibility
+  const togglePw = document.getElementById('togglePw');
+  const pwInput  = document.getElementById('password');
+  togglePw.addEventListener('click', () => {
+    const isText = pwInput.type === 'text';
+    pwInput.type = isText ? 'password' : 'text';
+    togglePw.textContent = isText ? '👁' : '🙈';
+  });
+
+  // Basic validation + login handler
+  function handleLogin() {
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const emailWrap = document.getElementById('email-wrap');
+    const pwWrap    = document.getElementById('pw-wrap');
+    const emailErr  = document.getElementById('email-err');
+    const pwErr     = document.getElementById('pw-err');
+
+    let valid = true;
+
+    // Reset
+    emailWrap.classList.remove('has-error');
+    pwWrap.classList.remove('has-error');
+    emailErr.style.display = 'none';
+    pwErr.style.display    = 'none';
+
+    // Email check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      emailWrap.classList.add('has-error');
+      emailErr.style.display = 'block';
+      valid = false;
+    }
+
+    // Password check
+    if (password.length < 6) {
+      pwWrap.classList.add('has-error');
+      pwErr.style.display = 'block';
+      valid = false;
+    }
+
+main
+    if (valid) {
+    const btn = document.getElementById('loginBtn');
+    btn.textContent = 'Signing in…';
+    btn.disabled = true;
+    btn.style.opacity = '0.8';
+
+    setTimeout(() => {
+      window.location.href = "index.html";
+    }, 1500);
+  }
+}
+
+     if (valid) {
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+  btn.style.opacity = '0.8';
+
+  setTimeout(() => {
+    window.location.href = "index.html";
+  }, 1500);
+}
+  }
+  main
+
+  // Allow Enter key to submit
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleLogin();
+  });
+</script>
+
+</body>
+</html>
